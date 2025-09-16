@@ -2,7 +2,6 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
-#include <stdio.h>
 #include <math.h>
 
 #define PI 3.141592654
@@ -35,28 +34,38 @@ typedef struct RayCluster{
 double getDistance(double x1, double y1, double x2, double y2){
     return sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
 }
-
 int detectObstacle(double x, double y, Room room){
-    if(x < (room.x + room.width) && x > room.x){
-        /*
-        if(y > (room.y + (int)(0.25 * (room.height - 2*room.thickness))) && y < (room.thickness + (int)(0.75 * (room.height - 2*room.thickness)))){
-            return 0;
-        }
-        */
-        int gap_top = room.y + room.thickness + (int)(0.25 * (room.height - 2 * room.thickness));
-        int gap_bottom = room.y + room.thickness + (int)(0.75 * (room.height - 2 * room.thickness));
-
-        if (y > gap_top && y < gap_bottom) {
-            return 0;
-        }
-        
-        if(y > room.y && y < (room.y + room.height)){
-            return 1;
-        }
+    if(x >= room.x && x < room.x + room.width &&
+        y >= room.y && y < room.y + room.thickness){
+        return 1;
     }
+
+    if(x >= room.x && x < room.x + room.width &&
+        y >= room.y + room.height - room.thickness &&
+        y < room.y + room.height){
+        return 1;
+    }
+
+    if(x >= room.x && x < room.x + room.thickness &&
+        y >= room.y + room.thickness &&
+        y < room.y + room.thickness + (int)(0.25 * (room.height - 2 * room.thickness))){
+        return 1;
+    }
+
+    if(x >= room.x && x < room.x + room.thickness &&
+        y >= room.y + room.thickness + (int)(0.75 * (room.height - 2 * room.thickness)) &&
+        y < room.y + room.height - room.thickness){
+        return 1;
+    }
+
+    if(x >= room.x + room.width - room.thickness && x < room.x + room.width &&
+        y >= room.y + room.thickness &&
+        y < room.y + room.height - room.thickness){
+        return 1;
+    }
+
     return 0;
 }
-
 
 void USR_BuildCircle(struct Circle circle, SDL_Window *window, Uint32 color){
     SDL_Surface* win_surface =  SDL_GetWindowSurface(window);
