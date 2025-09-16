@@ -6,12 +6,17 @@
 #define PI 3.141592654
 #define SUN_COLOR 0xf549f3
 #define RAY_COLOR 0xf549f3
+#define ROOM_COLOR 0x0de03b
 #define WIN_WIDTH 1000
 #define WIN_HEIGHT 500
+
+int numObjects = 0;
+
 typedef struct Object{
     void *shape;
     int (*detect)(double x, double y, void *shape);
     void (*draw)(void *shape, SDL_Window *window, Uint32 color);
+    Uint32 objectColor;
 }Object;
 
 typedef struct Circle{
@@ -83,15 +88,15 @@ void drawRoom(void *roomObject, SDL_Window *window, Uint32 color){
     int thickness = room->thickness;
 
     SDL_Rect top = (SDL_Rect) {x, y, width, thickness};
-    SDL_FillRect(win_surface, &top, 0x0de03b);
+    SDL_FillRect(win_surface, &top, color);
     SDL_Rect bottom = (SDL_Rect) {x, y + height - thickness, width, thickness};
-    SDL_FillRect(win_surface, &bottom, 0x0de03b);
+    SDL_FillRect(win_surface, &bottom, color);
     SDL_Rect left_up = (SDL_Rect) {x, y + thickness, thickness, (int)(0.25 * (height - 2*thickness)) };
-    SDL_FillRect(win_surface, &left_up, 0x0de03b);
+    SDL_FillRect(win_surface, &left_up, color);
     SDL_Rect left_bottom = (SDL_Rect) {x, y + thickness + (int)(0.75 * (height - 2*thickness)), thickness, (int)(0.25 * (height - 2*thickness)) };
-    SDL_FillRect(win_surface, &left_bottom, 0x0de03b);
+    SDL_FillRect(win_surface, &left_bottom, color);
     SDL_Rect right = (SDL_Rect) {x + width - thickness, y + thickness, thickness, height - 2 * thickness};
-    SDL_FillRect(win_surface, &right, 0x0de03b);
+    SDL_FillRect(win_surface, &right, color);
 
     SDL_UpdateWindowSurface(window);
 }
@@ -112,9 +117,15 @@ void drawCircle(void *circleObject, SDL_Window *window, Uint32 color){
     SDL_UpdateWindowSurface(window);
 }
 
-int detectCircle(double x, double y, void* roomObject){}
+int detectCircle(double x, double y, void* circleObject){
+    Circle *circle = (Circle *)circleObject;
+    if(getDistance(x, y, circle->x, circle->y) <= circle->radius){
+        return 1;
+    }
+    return 0;
+}
 
-void USR_RenderRays(RayCluster cluster, SDL_Window *window, Uint32 color, Room room){
+void USR_RenderRays(RayCluster cluster, SDL_Window *window, Uint32 color, Object *objects){
     double xOrigin = cluster.x;
     double yOrigin = cluster.y;
     int numRays = cluster.numRays;
@@ -128,12 +139,20 @@ void USR_RenderRays(RayCluster cluster, SDL_Window *window, Uint32 color, Room r
             double x = xOrigin + d * cos(PI * angle / 180.0);
             double y = yOrigin + d * sin(PI * angle / 180.0);
 
-            if(x < 0 || y < 0 || x > 1000 || y > 500 || detectRoom(x, y, &room)){
+            if(x < 0 || y < 0 || x > 1000 || y > 500){
                 break;
-            }else{
-                SDL_Rect right = (SDL_Rect) {x, y, 1, 1};
-                SDL_FillRect(win_surface, &right, color);
             }
+            int hit = 0;
+            for(int i = 1 ; i < numObjects ; i++){
+                if(objects[i].detect(x, y, objects[i].shape)){
+                    hit = 1;
+                    break;
+                }
+            }
+            if(hit) break;
+ 
+            SDL_Rect right = (SDL_Rect) {x, y, 1, 1};
+            SDL_FillRect(win_surface, &right, color);
         }
     }
     SDL_UpdateWindowSurface(window);
@@ -150,14 +169,22 @@ int main(){
     SDL_FillRect(win_surface, &rect, 0x0de03b);
     SDL_UpdateWindowSurface(window);
     
-    RayCluster sunRays = (RayCluster) {200, 200, 150};
+    RayCluster sunRays = (RayCluster) {200, 200, 200};
     
     Object objects[10];
     Circle sun = {200, 200, 50};
-    Room room = {750, 250, 100, 200, 10};
+    Circle ball = {100, 100, 25};
+    Room room1 = {750, 250, 100, 200, 10};
+    Room room2 = {250, 250, 100, 200, 15};
 
-    Object room1Object = {&room, &detectRoom, &drawRoom};
-    Object circle1Object = {&sun, &detectCircle, &drawCircle};
+    Object circle1Object = {&sun, &detectCircle, &drawCircle, SUN_COLOR};
+    objects[numObjects++] = circle1Object;
+    Object room1Object = {&room1, &detectRoom, &drawRoom, ROOM_COLOR};
+    objects[numObjects++] = room1Object;
+    Object room2Object = {&room2, &detectRoom, &drawRoom, ROOM_COLOR};
+    objects[numObjects++] = room2Object;
+    Object circle2Object = {&ball, &detectCircle, &drawCircle, SUN_COLOR};
+    objects[numObjects++] = circle2Object;
 
     SDL_Event event;
 
@@ -179,9 +206,10 @@ int main(){
                     } 
             }
             
-            drawCircle(&sun, window, SUN_COLOR);
-            USR_RenderRays(sunRays, window, RAY_COLOR, room);
-            drawRoom(&room, window, SUN_COLOR);
+            USR_RenderRays(sunRays, window, RAY_COLOR, objects);
+            for(int i = 0 ; i < numObjects ; i++){
+                objects[i].draw(objects[i].shape, window, objects[i].objectColor);
+            }
             // clear canvas before each frame
             SDL_FillRect(win_surface, &win_rect, 0x000000);
         }
@@ -190,5 +218,4 @@ int main(){
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
-
 }
