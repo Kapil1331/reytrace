@@ -14,9 +14,11 @@ int numObjects = 0;
 
 typedef struct Object{
     void *shape;
-    int (*detect)(double x, double y, void *shape);
+    void *(*detect)(double x, double y, void *shape);
     void (*draw)(void *shape, SDL_Window *window, Uint32 color);
     Uint32 objectColor;
+    int objectType;
+    void (*moveObject)(void *shape, double x, double y);
 }Object;
 
 typedef struct Circle{
@@ -43,38 +45,38 @@ double getDistance(double x1, double y1, double x2, double y2){
     return sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
 }
 
-int detectRoom(double x, double y, void* roomObject){
+void *detectRoom(double x, double y, void* roomObject){
     Room *room = (Room*)roomObject;
     if(x >= room->x && x < room->x + room->width &&
         y >= room->y && y < room->y + room->thickness){
-        return 1;
+        return roomObject;
     }
 
     if(x >= room->x && x < room->x + room->width &&
         y >= room->y + room->height - room->thickness &&
         y < room->y + room->height){
-        return 1;
+        return roomObject;
     }
 
     if(x >= room->x && x < room->x + room->thickness &&
         y >= room->y + room->thickness &&
         y < room->y + room->thickness + (int)(0.25 * (room->height - 2 * room->thickness))){
-        return 1;
+        return roomObject;
     }
 
     if(x >= room->x && x < room->x + room->thickness &&
         y >= room->y + room->thickness + (int)(0.75 * (room->height - 2 * room->thickness)) &&
         y < room->y + room->height - room->thickness){
-        return 1;
+        return roomObject;
     }
 
     if(x >= room->x + room->width - room->thickness && x < room->x + room->width &&
         y >= room->y + room->thickness &&
         y < room->y + room->height - room->thickness){
-        return 1;
+        return roomObject;
     }
 
-    return 0;
+    return NULL;
 }
 
 void drawRoom(void *roomObject, SDL_Window *window, Uint32 color){
@@ -117,12 +119,33 @@ void drawCircle(void *circleObject, SDL_Window *window, Uint32 color){
     SDL_UpdateWindowSurface(window);
 }
 
-int detectCircle(double x, double y, void* circleObject){
+void *detectCircle(double x, double y, void* circleObject){
     Circle *circle = (Circle *)circleObject;
     if(getDistance(x, y, circle->x, circle->y) <= circle->radius){
-        return 1;
+        return circleObject;
     }
-    return 0;
+    return NULL;
+}
+
+void moveCircle(void *shape, double x, double y){
+    Circle *circle = (Circle *)shape;
+    circle->x += x;
+    circle->y += y;
+}
+
+void moveRoom(void *shape, double x, double y){
+    Room *room = (Room *)shape;
+    room->x += x;
+    room->y += y;
+}
+
+Object *detectObjects(double x, double y, Object *objects){
+    for(int i = 0 ; i < numObjects ; i++){
+        if(objects[i].detect(x, y, objects[i].shape) != NULL){
+            return &objects[i];
+        }
+    }
+    return NULL;
 }
 
 void USR_RenderRays(RayCluster cluster, SDL_Window *window, Uint32 color, Object *objects){
@@ -144,7 +167,7 @@ void USR_RenderRays(RayCluster cluster, SDL_Window *window, Uint32 color, Object
             }
             int hit = 0;
             for(int i = 1 ; i < numObjects ; i++){
-                if(objects[i].detect(x, y, objects[i].shape)){
+                if(objects[i].detect(x, y, objects[i].shape) != NULL){
                     hit = 1;
                     break;
                 }
@@ -177,13 +200,13 @@ int main(){
     Room room1 = {750, 250, 100, 200, 10};
     Room room2 = {250, 250, 100, 200, 15};
 
-    Object circle1Object = {&sun, &detectCircle, &drawCircle, SUN_COLOR};
+    Object circle1Object = {&sun, &detectCircle, &drawCircle, SUN_COLOR, 0, moveCircle};
     objects[numObjects++] = circle1Object;
-    Object room1Object = {&room1, &detectRoom, &drawRoom, ROOM_COLOR};
+    Object room1Object = {&room1, &detectRoom, &drawRoom, ROOM_COLOR, 2, moveRoom};
     objects[numObjects++] = room1Object;
-    Object room2Object = {&room2, &detectRoom, &drawRoom, ROOM_COLOR};
+    Object room2Object = {&room2, &detectRoom, &drawRoom, ROOM_COLOR, 2, moveRoom};
     objects[numObjects++] = room2Object;
-    Object circle2Object = {&ball, &detectCircle, &drawCircle, SUN_COLOR};
+    Object circle2Object = {&ball, &detectCircle, &drawCircle, SUN_COLOR, 1, moveCircle};
     objects[numObjects++] = circle2Object;
 
     SDL_Event event;
@@ -199,10 +222,14 @@ int main(){
                     break;
                 case SDL_MOUSEMOTION:
                     if(event.motion.state == SDL_PRESSED){
-                        sun.x = event.motion.x;
-                        sun.y = event.motion.y;
-                        sunRays.x = event.motion.x;
-                        sunRays.y = event.motion.y;
+                        Object *detectedObject = detectObjects(event.motion.x, event.motion.y, objects);
+                        if(detectedObject != NULL){
+                            if(detectedObject->objectType == 0){
+                                sunRays.x += event.motion.xrel;
+                                sunRays.y += event.motion.yrel;
+                            }
+                            detectedObject->moveObject(detectedObject->shape, event.motion.xrel, event.motion.yrel);
+                        }
                     } 
             }
             
