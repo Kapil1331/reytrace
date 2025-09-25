@@ -1,7 +1,7 @@
-#include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_video.h>
+#include "structs.h"
 
 #define PI 3.141592654
 #define SUN_COLOR 0xf549f3
@@ -10,36 +10,8 @@
 #define WIN_WIDTH 1000
 #define WIN_HEIGHT 500
 
+#define SUN 0
 int numObjects = 0;
-
-typedef struct Object{
-    void *shape;
-    void *(*detect)(double x, double y, void *shape);
-    void (*draw)(void *shape, SDL_Window *window, Uint32 color);
-    Uint32 objectColor;
-    int objectType;
-    void (*moveObject)(void *shape, double x, double y);
-}Object;
-
-typedef struct Circle{
-    double x;
-    double y;
-    double radius;
-}Circle;
-
-typedef struct Room{
-    int x;
-    int y;
-    int height;
-    int width;
-    int thickness;
-}Room;
-
-typedef struct RayCluster{
-    double x;
-    double y;
-    int numRays;
-}RayCluster;
 
 double getDistance(double x1, double y1, double x2, double y2){
     return sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2));
@@ -200,7 +172,7 @@ int main(){
     Room room1 = {750, 250, 100, 200, 10};
     Room room2 = {250, 250, 100, 200, 15};
 
-    Object circle1Object = {&sun, &detectCircle, &drawCircle, SUN_COLOR, 0, moveCircle};
+    Object circle1Object = {&sun, &detectCircle, &drawCircle, SUN_COLOR, SUN, moveCircle};
     objects[numObjects++] = circle1Object;
     Object room1Object = {&room1, &detectRoom, &drawRoom, ROOM_COLOR, 2, moveRoom};
     objects[numObjects++] = room1Object;
