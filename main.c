@@ -191,7 +191,7 @@ int main(){
                     run = 0;
                     SDL_DestroyWindow(window);
                     SDL_Quit();
-                    break;
+                    return 0;
                 case SDL_MOUSEMOTION:
                     if(event.motion.state == SDL_PRESSED){
                         Object *detectedObject = detectObjects(event.motion.x, event.motion.y, objects);
@@ -204,13 +204,12 @@ int main(){
                         }
                     } 
             }
-            
+            SDL_FillRect(win_surface, &win_rect, 0x000000);
             USR_RenderRays(sunRays, window, RAY_COLOR, objects);
             for(int i = 0 ; i < numObjects ; i++){
                 objects[i].draw(objects[i].shape, window, objects[i].objectColor);
             }
-            // clear canvas before each frame
-            SDL_FillRect(win_surface, &win_rect, 0x000000);
+            SDL_UpdateWindowSurface(window);
         }
     }
 
